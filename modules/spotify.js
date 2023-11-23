@@ -2,20 +2,22 @@ require("dotenv").config();
 const express = require("express");
 const querystring = require("querystring");
 const axios = require("axios");
+const cookieParser = require("cookie-parser");
 const app = express();
+
+app.use(cookieParser());
 
 app.listen(8080, () => {
   console.log("App is listening on port 8080!");
 });
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   const params = {
     response_type: "code",
     client_id: process.env.CLIENT_ID,
-    scope: "user-read-private user-read-email",
-    //TODO
+    scope: "user-read-private user-read-email user-top-read",
     //code_challenge_method: "S256",
-    //code_challenge: codeChallenge,
+    //code_challenge: challenge,
     redirect_uri: "http://localhost:8080/callback",
   };
 
@@ -26,29 +28,79 @@ app.get("/", (req, res) => {
 });
 
 app.get("/callback", async (req, res) => {
-  //console.log("spotify response code is " + req.query.code);
+  if (isEmpty(req.cookies.tokenSpotify)) {
+    const auth = new Buffer.from(
+      process.env.CLIENT_ID + ":" + process.env.CLIENT_SECRET
+    ).toString("base64");
 
-  const auth = new Buffer.from(
-    process.env.CLIENT_ID + ":" + process.env.CLIENT_SECRET
-  ).toString("base64");
-  const spotifyResponse = await axios.post(
-    "https://accounts.spotify.com/api/token",
-    querystring.stringify({
-      grant_type: "authorization_code",
-      code: req.query.code,
-      redirect_uri: "http://localhost:8080/callback",
-    }),
-    {
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        Authorization: "Basic " + auth,
-      },
+    await axios
+      .post(
+        "https://accounts.spotify.com/api/token",
+        querystring.stringify({
+          grant_type: "authorization_code",
+          code: req.query.code,
+          redirect_uri: "http://localhost:8080/callback",
+        }),
+        {
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            Authorization: "Basic " + auth,
+          },
+        }
+      )
+      .then(function (spotifyResponse) {
+        res.cookie("tokenSpotify", spotifyResponse.data.access_token, {
+          maxAge: 5000,
+          secure: true,
+          httpOnly: true,
+          sameSite: "lax",
+        });
+        res.redirect("/home");
+      });
+  } else {
+    res.redirect("/home");
+  }
+});
+
+app.get("/home", async (req, res) => {
+  await axios
+    .get(
+      "https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=100",
+      {
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          Authorization: "Bearer " + req.cookies.tokenSpotify,
+        },
+      }
+    )
+    .then((response) => {
+      res.send(response);
+    })
+    .catch((error) => {
+      if (error.response) {
+        console.log(error.response.data);
+        console.log(error.response.status);
+      }
+    });
+});
+
+function isEmpty(value) {
+  if (Array.isArray(value)) {
+    for (var i = 0; i < value.length; i++) {
+      if (value[i]) {
+        return false;
+      }
     }
-  );
-
-  res.send(spotifyResponse.data);
-});
-
-app.get("/home", (req, res) => {
-  res.send("<h1> Logadasso </h1>");
-});
+    return true;
+  } else {
+    if (
+      value === undefined ||
+      value === null ||
+      value === "" ||
+      JSON.stringify(value) === "{}"
+    ) {
+      return true;
+    }
+    return false;
+  }
+}
