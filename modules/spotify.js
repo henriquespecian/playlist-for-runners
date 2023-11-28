@@ -11,6 +11,15 @@ app.listen(8080, () => {
   console.log("App is listening on port 8080!");
 });
 
+axios.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 app.get("/", async (req, res) => {
   const params = {
     response_type: "code",
@@ -50,7 +59,7 @@ app.get("/callback", async (req, res) => {
       )
       .then(function (spotifyResponse) {
         res.cookie("tokenSpotify", spotifyResponse.data.access_token, {
-          maxAge: 5000,
+          expires: new Date(Date.now() + 900000), //15min
           secure: true,
           httpOnly: true,
           sameSite: "lax",
@@ -63,6 +72,10 @@ app.get("/callback", async (req, res) => {
 });
 
 app.get("/home", async (req, res) => {
+  if (isEmpty(req.cookies.tokenSpotify)) {
+    res.redirect("/");
+  }
+
   await axios
     .get(
       "https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=100",
@@ -74,13 +87,7 @@ app.get("/home", async (req, res) => {
       }
     )
     .then((response) => {
-      res.send(response);
-    })
-    .catch((error) => {
-      if (error.response) {
-        console.log(error.response.data);
-        console.log(error.response.status);
-      }
+      res.send(response.data);
     });
 });
 
