@@ -4,6 +4,7 @@ const querystring = require("querystring");
 const axios = require("axios");
 const cookieParser = require("cookie-parser");
 const app = express();
+const TrackModel = require("../src/models/track.model");
 
 app.use(cookieParser());
 
@@ -78,7 +79,7 @@ app.get("/home", async (req, res) => {
 
   await axios
     .get(
-      "https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=100",
+      "https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=50",
       {
         headers: {
           "content-type": "application/x-www-form-urlencoded",
@@ -87,7 +88,12 @@ app.get("/home", async (req, res) => {
       }
     )
     .then((response) => {
-      res.send(response.data);
+      response.data.items.forEach((track) => {
+        //Automap for the schema
+        TrackModel.create(track);
+      });
+
+      res.send("Success");
     });
 });
 
