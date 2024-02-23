@@ -1,4 +1,2 @@
 require("./modules/spotify.js");
-
-const connectToDatabse = require("./src/database/connect");
-connectToDatabse();
+require("spotify-web-api-node");

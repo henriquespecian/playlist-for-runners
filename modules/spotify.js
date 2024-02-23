@@ -1,12 +1,8 @@
 require("dotenv").config();
 const express = require("express");
-const querystring = require("querystring");
 const axios = require("axios");
-const cookieParser = require("cookie-parser");
 const app = express();
-const TrackModel = require("../src/models/track.model");
-
-app.use(cookieParser());
+const SpotifyWebApi = require("spotify-web-api-node");
 
 app.listen(8080, () => {
   console.log("App is listening on port 8080!");
@@ -21,80 +17,124 @@ axios.interceptors.response.use(
   }
 );
 
+const spotifyApi = new SpotifyWebApi({
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  redirectUri: "http://localhost:8080/callback",
+});
+
 app.get("/", async (req, res) => {
-  const params = {
-    response_type: "code",
-    client_id: process.env.CLIENT_ID,
-    scope: "user-read-private user-read-email user-top-read",
-    //code_challenge_method: "S256",
-    //code_challenge: challenge,
-    redirect_uri: "http://localhost:8080/callback",
-  };
+  const scopes = [
+    "user-read-private",
+    "user-read-email",
+    "user-top-read",
+    "playlist-modify-private",
+    "playlist-modify-public",
+  ];
+  const state = "some-state-of-my-choice";
 
-  const authUrl = new URL("https://accounts.spotify.com/authorize");
-  authUrl.search = new URLSearchParams(params).toString();
+  // Create the authorization URL
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
 
-  res.send("<a href='" + authUrl + "'>Sign in</a>");
+  res.send("<a href='" + authorizeURL + "'>Sign in</a>");
 });
 
 app.get("/callback", async (req, res) => {
-  if (isEmpty(req.cookies.tokenSpotify)) {
-    const auth = new Buffer.from(
-      process.env.CLIENT_ID + ":" + process.env.CLIENT_SECRET
-    ).toString("base64");
+  if (isEmpty(spotifyApi.getAccessToken())) {
+    const code = req.query.code;
 
-    await axios
-      .post(
-        "https://accounts.spotify.com/api/token",
-        querystring.stringify({
-          grant_type: "authorization_code",
-          code: req.query.code,
-          redirect_uri: "http://localhost:8080/callback",
-        }),
-        {
-          headers: {
-            "content-type": "application/x-www-form-urlencoded",
-            Authorization: "Basic " + auth,
-          },
-        }
-      )
-      .then(function (spotifyResponse) {
-        res.cookie("tokenSpotify", spotifyResponse.data.access_token, {
-          expires: new Date(Date.now() + 900000), //15min
-          secure: true,
-          httpOnly: true,
-          sameSite: "lax",
-        });
+    // Retrieve an access token and a refresh token
+    spotifyApi.authorizationCodeGrant(code).then(
+      function (data) {
+        // Set the access token on the API object to use it in later calls
+        spotifyApi.setAccessToken(data.body["access_token"]);
+        spotifyApi.setRefreshToken(data.body["refresh_token"]);
+
         res.redirect("/home");
-      });
+      },
+      function (err) {
+        console.log("Something went wrong!", err);
+      }
+    );
   } else {
-    res.redirect("/home");
+    spotifyApi.refreshAccessToken().then(
+      function (data) {
+        console.log("The access token has been refreshed!");
+
+        //save the new accessToken
+        spotifyApi.setAccessToken(data.body["access_token"]);
+      },
+      function (err) {
+        console.log("Could not refresh access token", err);
+      }
+    );
   }
 });
 
 app.get("/home", async (req, res) => {
-  if (isEmpty(req.cookies.tokenSpotify)) {
+  if (isEmpty(spotifyApi.getAccessToken())) {
     res.redirect("/");
   }
 
-  await axios
-    .get(
-      "https://api.spotify.com/v1/me/top/tracks?time_range=medium_term&limit=50",
-      {
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          Authorization: "Bearer " + req.cookies.tokenSpotify,
-        },
-      }
-    )
-    .then((response) => {
-      response.data.items.forEach((track) => {
-        //Automap for the schema
-        TrackModel.create(track);
+  //Get top tracks
+  spotifyApi.getMyTopTracks({ limit: 50 }).then(
+    function (data) {
+      const trackId = [];
+
+      data.body.items.forEach((track) => {
+        trackId.push(track.id);
       });
 
-      res.send("Success");
-    });
+      //Get the tempo
+      spotifyApi.getAudioFeaturesForTracks(trackId).then(
+        function (data) {
+          const minTempo = 158;
+          const maxTempo = 162;
+
+          const filteredTrack = [];
+          //filter by specific range of tempo
+          data.body.audio_features.forEach((track) => {
+            if (track.tempo >= minTempo && track.tempo <= maxTempo) {
+              filteredTrack.push("spotify:track:" + track.id);
+            }
+          });
+
+          //Create a playlist with the tempo name and the tracks
+          spotifyApi
+            .createPlaylist("Running playlist 160 bpm", {
+              description: "running playlist",
+              public: true,
+            })
+            .then(
+              function (data) {
+                // Add tracks to a playlist
+                spotifyApi
+                  .addTracksToPlaylist(data.body.id, filteredTrack)
+                  .then(
+                    function (data) {
+                      console.log("Added tracks to playlist!");
+                    },
+                    function (err) {
+                      console.log("Something went wrong!", err);
+                    }
+                  );
+
+                console.log("Created playlist!");
+              },
+              function (err) {
+                console.log("Something went wrong!", err);
+              }
+            );
+        },
+        function (err) {
+          done(err);
+        }
+      );
+    },
+    function (err) {
+      console.log("Something went wrong!", err);
+    }
+  );
 });
 
 function isEmpty(value) {
