@@ -50,7 +50,9 @@ app.get("/callback", async (req, res) => {
         spotifyApi.setAccessToken(data.body["access_token"]);
         spotifyApi.setRefreshToken(data.body["refresh_token"]);
 
-        res.redirect("/home");
+        res.send(
+          "<a href='/home'>Create 160bpm playlist including doubled BPM (80bpm) </a>"
+        );
       },
       function (err) {
         console.log("Something went wrong!", err);
@@ -63,6 +65,10 @@ app.get("/callback", async (req, res) => {
 
         //save the new accessToken
         spotifyApi.setAccessToken(data.body["access_token"]);
+
+        res.send(
+          "<a href='/home'>Create 160bpm playlist including doubled BPM (80bpm) </a>"
+        );
       },
       function (err) {
         console.log("Could not refresh access token", err);
@@ -72,69 +78,63 @@ app.get("/callback", async (req, res) => {
 });
 
 app.get("/home", async (req, res) => {
-  if (isEmpty(spotifyApi.getAccessToken())) {
-    res.redirect("/");
-  }
-
-  //Get top tracks
-  spotifyApi.getMyTopTracks({ limit: 50 }).then(
-    function (data) {
-      const trackId = [];
-
-      data.body.items.forEach((track) => {
-        trackId.push(track.id);
-      });
-
-      //Get the tempo
-      spotifyApi.getAudioFeaturesForTracks(trackId).then(
-        function (data) {
-          const minTempo = 158;
-          const maxTempo = 162;
-
-          const filteredTrack = [];
-          //filter by specific range of tempo
-          data.body.audio_features.forEach((track) => {
-            if (track.tempo >= minTempo && track.tempo <= maxTempo) {
-              filteredTrack.push("spotify:track:" + track.id);
-            }
-          });
-
-          //Create a playlist with the tempo name and the tracks
-          spotifyApi
-            .createPlaylist("Running playlist 160 bpm", {
-              description: "running playlist",
-              public: true,
-            })
-            .then(
-              function (data) {
-                // Add tracks to a playlist
-                spotifyApi
-                  .addTracksToPlaylist(data.body.id, filteredTrack)
-                  .then(
-                    function (data) {
-                      console.log("Added tracks to playlist!");
-                    },
-                    function (err) {
-                      console.log("Something went wrong!", err);
-                    }
-                  );
-
-                console.log("Created playlist!");
-              },
-              function (err) {
-                console.log("Something went wrong!", err);
-              }
-            );
-        },
-        function (err) {
-          done(err);
-        }
-      );
-    },
-    function (err) {
-      console.log("Something went wrong!", err);
+  try {
+    // Check if Spotify access token is empty
+    if (isEmpty(spotifyApi.getAccessToken())) {
+      return res.redirect("/");
     }
-  );
+    const trackIds = [];
+    const minTempo = 158;
+    const maxTempo = 162;
+    const doubledMinTempo = Math.round(minTempo / 2);
+    const doubledMaxTempo = Math.round(maxTempo / 2);
+
+    //First get some seed to the recommendations api
+
+    // Get the user's top tracks
+    const topTracksResponse = await spotifyApi.getMyTopTracks({ limit: 5 });
+    trackIds.push(topTracksResponse.body.items.map((track) => track.id));
+
+    // Get recommendations
+    const recommendations = await spotifyApi.getRecommendations({
+      min_tempo: minTempo,
+      max_tempo: maxTempo,
+      seed_tracks: [trackIds],
+      limit: 50,
+    });
+
+    // Ger doubled recommendations
+    const doubledRecommendations = await spotifyApi.getRecommendations({
+      min_tempo: doubledMinTempo,
+      max_tempo: doubledMaxTempo,
+      seed_tracks: [trackIds],
+      limit: 50,
+    });
+
+    recommendations.body.tracks.push(...doubledRecommendations.body.tracks);
+
+    //Create the object
+    const filteredTrackUris = recommendations.body.tracks.map(
+      (track) => `spotify:track:${track.id}`
+    );
+
+    // Create a playlist with the filtered tracks
+    const playlist = await spotifyApi.createPlaylist(
+      "Running playlist 160 bpm - Reco",
+      {
+        description: "running playlist",
+        public: true,
+      }
+    );
+
+    // Add tracks to the playlist
+    await spotifyApi.addTracksToPlaylist(playlist.body.id, filteredTrackUris);
+
+    res.send("Access your spotify and enjoy your running");
+  } catch (error) {
+    console.error("Something went wrong!", error);
+    res.status(500).send("Something went wrong!");
+  }
 });
 
 function isEmpty(value) {
