@@ -84,6 +84,7 @@ app.get("/home", async (req, res) => {
       return res.redirect("/");
     }
     const trackIds = [];
+    const artistIds = [];
     const minTempo = 158;
     const maxTempo = 162;
     const doubledMinTempo = Math.round(minTempo / 2);
@@ -95,12 +96,20 @@ app.get("/home", async (req, res) => {
     const topTracksResponse = await spotifyApi.getMyTopTracks({ limit: 5 });
     trackIds.push(topTracksResponse.body.items.map((track) => track.id));
 
+    // Get the user's recent tracks
+    const recentArtists = await spotifyApi.getMyTopArtists({
+      time_range: "short_term",
+      limit: 5,
+    });
+    artistIds.push(recentArtists.body.items.map((ar) => ar.id));
+
     // Get recommendations
     const recommendations = await spotifyApi.getRecommendations({
       min_tempo: minTempo,
       max_tempo: maxTempo,
       seed_tracks: [trackIds],
-      limit: 50,
+      seed_artists: [artistIds],
+      limit: 10,
     });
 
     // Ger doubled recommendations
@@ -108,7 +117,7 @@ app.get("/home", async (req, res) => {
       min_tempo: doubledMinTempo,
       max_tempo: doubledMaxTempo,
       seed_tracks: [trackIds],
-      limit: 50,
+      limit: 10,
     });
 
     recommendations.body.tracks.push(...doubledRecommendations.body.tracks);
