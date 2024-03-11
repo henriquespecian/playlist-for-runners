@@ -30,6 +30,7 @@ app.get("/", async (req, res) => {
     "user-top-read",
     "playlist-modify-private",
     "playlist-modify-public",
+    "user-library-read",
   ];
   const state = "some-state-of-my-choice";
 
@@ -89,34 +90,91 @@ app.get("/home", async (req, res) => {
     const maxTempo = 162;
     const doubledMinTempo = Math.round(minTempo / 2);
     const doubledMaxTempo = Math.round(maxTempo / 2);
+    const filteredTrack = [];
+    const tracks = [];
 
-    //First get some seed to the recommendations api
+    // Get several tracks from the user first
+    const savedTrack = await spotifyApi.getMySavedTracks({
+      limit: 50,
+    });
 
-    // Get the user's top tracks
-    const topTracksResponse = await spotifyApi.getMyTopTracks({ limit: 5 });
-    trackIds.push(topTracksResponse.body.items.map((track) => track.id));
+    const longTermTracks = await spotifyApi.getMyTopTracks({
+      limit: 50,
+      time_range: "long_term",
+    });
 
-    // Get the user's recent tracks
+    const mediumTermTracks = await spotifyApi.getMyTopTracks({
+      limit: 50,
+      time_range: "medium_term",
+    });
+
+    const shortTermTracks = await spotifyApi.getMyTopTracks({
+      limit: 50,
+      time_range: "short_term",
+    });
+
+    // Combined trakcs
+    const combinedTracks = [
+      ...longTermTracks.body.items,
+      ...mediumTermTracks.body.items,
+      ...shortTermTracks.body.items,
+      ...savedTrack.body.items,
+    ];
+
+    combinedTracks.forEach((track) => {
+      tracks.push(track.id);
+    });
+
+    const audioFeaturesFirst = await spotifyApi.getAudioFeaturesForTracks(
+      tracks.slice(0, 100)
+    );
+
+    const audioFeaturesSecond = await spotifyApi.getAudioFeaturesForTracks(
+      tracks.slice(100, 200)
+    );
+
+    const audioFeatures = [
+      ...audioFeaturesFirst.body.audio_features,
+      ...audioFeaturesSecond.body.audio_features,
+    ];
+
+    //filter by specific range of tempo
+    audioFeatures.forEach((track) => {
+      if (track.tempo >= minTempo && track.tempo <= maxTempo) {
+        filteredTrack.push(track.uri);
+      }
+    });
+
     const recentArtists = await spotifyApi.getMyTopArtists({
       time_range: "short_term",
-      limit: 5,
+      limit: 2,
     });
-    artistIds.push(recentArtists.body.items.map((ar) => ar.id));
+
+    const topArtists = await spotifyApi.getMyTopArtists({
+      time_range: "long_term",
+      limit: 3,
+    });
+
+    const seedArtists = [...recentArtists.body.items, ...topArtists.body.items];
+    const seedTracks = tracks.slice(0, 5);
+
+    artistIds.push(seedArtists.map((ar) => ar.id));
 
     // Get recommendations
     const recommendations = await spotifyApi.getRecommendations({
       min_tempo: minTempo,
       max_tempo: maxTempo,
-      seed_tracks: [trackIds],
-      seed_artists: [artistIds],
+      seed_artists: [artistIds[0]],
+      seed_tracks: [seedTracks],
       limit: 10,
     });
 
-    // Ger doubled recommendations
+    // Get doubled recommendations
     const doubledRecommendations = await spotifyApi.getRecommendations({
       min_tempo: doubledMinTempo,
       max_tempo: doubledMaxTempo,
-      seed_tracks: [trackIds],
+      seed_artists: [artistIds[0]],
+      seed_tracks: [seedTracks],
       limit: 10,
     });
 
@@ -138,6 +196,7 @@ app.get("/home", async (req, res) => {
 
     // Add tracks to the playlist
     await spotifyApi.addTracksToPlaylist(playlist.body.id, filteredTrackUris);
+    await spotifyApi.addTracksToPlaylist(playlist.body.id, filteredTrack);
 
     res.send("Access your spotify and enjoy your running");
   } catch (error) {
