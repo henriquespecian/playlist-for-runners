@@ -1,15 +1,17 @@
 const SpotifyService = require("../modules/spotifyService");
 const SpotifyWebApi = require("spotify-web-api-node");
 
-const spotifyApi = new SpotifyWebApi({
+const spotifyApiMock = new SpotifyWebApi({
   clientId: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
   redirectUri: "http://localhost:8080/callback",
 });
 
-const spotifyService = new SpotifyService(spotifyApi);
+const spotifyService = new SpotifyService(spotifyApiMock);
+jest.mock('spotify-web-api-node');
 
-test("getAuthorizationURL", () => {
+test("return authorizarion URL", () => {
+  
   const scopes = [
     "user-read-private",
     "user-read-email",
@@ -18,8 +20,10 @@ test("getAuthorizationURL", () => {
     "playlist-modify-public",
     "user-library-read",
   ];
-
   const state = "some-state-of-my-choice";
+  const authorizeURL = "https://accounts.spotify.com/authorize"
 
-  expect(spotifyService.sum(1, 2)).toBe(3);
+  spotifyService.getAuthorizationURL.mockResolveValue(authorizeURL);
+
+  expect(spotifyService.getAuthorizationURL(scopes,state)).toBe(authorizeURL);
 });

@@ -8,10 +8,7 @@ class SpotifyService {
   async getAuthorizationURL(scopes, state) {
     return this.spotifyApi.createAuthorizeURL(scopes, state);
   }
-
-  sum(a, b) {
-    return a + b;
-  }
+ 
 }
 
 module.exports = SpotifyService;
