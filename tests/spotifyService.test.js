@@ -20,3 +20,4 @@ test("should return authorizarion URL", async () => {
 
   expect(result).toBe(authorizeURL);
 });
+
