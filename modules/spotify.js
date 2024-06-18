@@ -91,7 +91,7 @@ app.get("/home", async (req, res) => {
     const minTempo = 158;
     const maxTempo = 162;
 
-    spotifyService.createPlaylist(minTempo, maxTempo);
+    spotifyService.createPlaylistBasedOnBPM(minTempo, maxTempo);
 
     res.send("Access your spotify and enjoy your running");
   } catch (error) {
