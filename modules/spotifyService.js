@@ -139,8 +139,13 @@ class SpotifyService {
     await this.spotifyApi.addTracksToPlaylist(playlistId, tracks);
   }
 
-  async createPlaylistBasedOnBPM(minTempo, maxTempo) {
+  async createPlaylistBasedOnBPM(tempo) {
     try {
+
+      // Margin
+      const minTempo = tempo + 2;
+      const maxTempo = tempo - 2;
+
       // Get several tracks from the user first
       const tracks = await this.getSeveralTracks();
 
@@ -160,7 +165,7 @@ class SpotifyService {
       );
 
       // Create a playlist with the filtered tracks
-      const playlist = await this.createPlaylist("Running playlist 160 bpm");
+      const playlist = await this.createPlaylist("Running playlist "+ tempo +" bpm");
 
       // Add tracks to the playlist
       await this.addTracksToPlaylist(playlist.body.id, filteredTrackUris);

@@ -38,7 +38,7 @@ app.get("/", async (req, res) => {
   const state = "some-state-of-my-choice";
 
   // Create the authorization URL
-  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
+  const authorizeURL = spotifyService.getAuthorizationURL(scopes, state);
 
   res.send("<a href='" + authorizeURL + "'>Sign in</a>");
 });
@@ -88,10 +88,9 @@ app.get("/home", async (req, res) => {
       return res.redirect("/");
     }
 
-    const minTempo = 158;
-    const maxTempo = 162;
+    const tempo = 160
 
-    spotifyService.createPlaylistBasedOnBPM(minTempo, maxTempo);
+    spotifyService.createPlaylistBasedOnBPM(tempo);
 
     res.send("Access your spotify and enjoy your running");
   } catch (error) {
