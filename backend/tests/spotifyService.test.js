@@ -1,4 +1,4 @@
-const SpotifyService = require("../modules/spotifyService");
+const SpotifyService = require("../src/spotifyService");
 const SpotifyWebApi = require("spotify-web-api-node");
 jest.mock('spotify-web-api-node');
 
