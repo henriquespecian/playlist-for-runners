@@ -1,12 +1,12 @@
+# Playlist for Runners
+
+This project provides a service to create personalized running playlists using the Spotify Web API. The playlists are generated based on the user's saved tracks, top tracks, and specific tempo ranges suitable for running.
+
 ## The end
 
 Spotify killed this project :(
 
 https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api
-
-# Playlist for Runners
-
-This project provides a service to create personalized running playlists using the Spotify Web API. The playlists are generated based on the user's saved tracks, top tracks, and specific tempo ranges suitable for running.
 
 ## Installation
 
