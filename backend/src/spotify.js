@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const app = express();
@@ -19,9 +18,9 @@ axios.interceptors.response.use(
 );
 
 const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET,
-  redirectUri: "http://localhost:8080/callback",
+  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+  redirectUri: process.env.SPOTIFY_REDIRECT_URI,
 });
 
 const spotifyService = new SpotifyService(spotifyApi);
@@ -38,7 +37,7 @@ app.get("/", async (req, res) => {
   const state = "some-state-of-my-choice";
 
   // Create the authorization URL
-  const authorizeURL = spotifyService.getAuthorizationURL(scopes, state);
+  const authorizeURL = await spotifyService.getAuthorizationURL(scopes, state);
 
   res.send("<a href='" + authorizeURL + "'>Sign in</a>");
 });
@@ -90,12 +89,12 @@ app.get("/home", async (req, res) => {
 
     const tempo = 160
 
-    spotifyService.createPlaylistBasedOnBPM(tempo);
+    await spotifyService.createPlaylistBasedOnBPM(tempo);
 
     res.send("Access your spotify and enjoy your running");
   } catch (error) {
     console.error("Something went wrong!", error);
-    res.status(500).send("Something went wrong!");
+    res.status(500).send(`Something went wrong! Error: ${error.message}`);
   }
 });
 

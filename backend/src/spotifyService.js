@@ -143,8 +143,8 @@ class SpotifyService {
     try {
 
       // Margin
-      const minTempo = tempo + 2;
-      const maxTempo = tempo - 2;
+      const minTempo = tempo - 2;
+      const maxTempo = tempo + 2;
 
       // Get several tracks from the user first
       const tracks = await this.getSeveralTracks();

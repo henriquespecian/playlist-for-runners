@@ -4,7 +4,7 @@
   "description": "Playlist for runners on spotify",
   "main": "index.js",
   "scripts": {
-    "start:dev": "nodemon index.js",
+    "start:dev": "nodemon --inspect index.js",
     "test": "jest"
   },
   "author": "",

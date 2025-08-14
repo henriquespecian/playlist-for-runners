@@ -1,3 +1,9 @@
+## The end
+
+Spotify killed this project :(
+
+https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api
+
 # Playlist for Runners
 
 This project provides a service to create personalized running playlists using the Spotify Web API. The playlists are generated based on the user's saved tracks, top tracks, and specific tempo ranges suitable for running.
@@ -16,6 +22,15 @@ cd playlist-for-runners
 ```
 npm install
 ```
+4. Create your project in spotify 
+
+- [Getting started](https://developer.spotify.com/documentation/web-api)
+
+Use this URL in "Redirect URIs"
+
+```
+http://localhost:8080/callback
+```
 
 3. Create a `.env` file in the root directory and add your Spotify API credentials:
 
@@ -23,6 +38,12 @@ npm install
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
 SPOTIFY_REDIRECT_URI=your_redirect_uri
+```
+
+4. Run
+
+```
+npm run start:dev
 ```
 
 ## Contributing
